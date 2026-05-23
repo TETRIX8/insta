@@ -23,12 +23,6 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run monitor check once
-        env:
-          INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
-          INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
-          TARGET_USERNAME: ${{ secrets.TARGET_USERNAME }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_USER_ID: ${{ secrets.TELEGRAM_USER_ID }}
         run: python instagram_watch.py --once
 
       - name: Commit state update
