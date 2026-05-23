@@ -2,7 +2,6 @@ import argparse
 import asyncio
 import json
 import logging
-import os
 from pathlib import Path
 from typing import Tuple
 
@@ -12,25 +11,14 @@ from instagrapi import Client
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
-STATE_FILE = Path(os.getenv("STATE_FILE", "monitor_state.json"))
-
-
-def get_required_env(name: str) -> str:
-    value = os.getenv(name)
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return value
-
-
-def load_config() -> dict:
-    return {
-        "instagram_username": get_required_env("INSTAGRAM_USERNAME"),
-        "instagram_password": get_required_env("INSTAGRAM_PASSWORD"),
-        "target_username": get_required_env("TARGET_USERNAME"),
-        "telegram_bot_token": get_required_env("TELEGRAM_BOT_TOKEN"),
-        "telegram_user_id": int(get_required_env("TELEGRAM_USER_ID")),
-        "check_every_seconds": int(os.getenv("CHECK_EVERY_SECONDS", "1800")),
-    }
+# HARD-CODED CONFIG (as requested)
+INSTAGRAM_USERNAME = "evloeww_1"
+INSTAGRAM_PASSWORD = "7Qi%e@hvfehbb#syej"
+TARGET_USERNAME = "mkk.dzv"
+TELEGRAM_BOT_TOKEN = "8683233882:AAG0f2U_tzVwqzPgvtKMx10qSZOKC8nQyxY"
+TELEGRAM_USER_ID = 8051344127
+CHECK_EVERY_SECONDS = 1800
+STATE_FILE = Path("monitor_state.json")
 
 
 def load_state() -> dict:
@@ -54,11 +42,11 @@ def diff_lists(old_items: list[str], new_items: list[str]) -> Tuple[list[str], l
     return added, removed
 
 
-def fetch_subscriptions_and_followers(username: str, password: str, target_username: str) -> Tuple[list[str], list[str]]:
+def fetch_subscriptions_and_followers() -> Tuple[list[str], list[str]]:
     cl = Client()
-    cl.login(username, password)
+    cl.login(INSTAGRAM_USERNAME, INSTAGRAM_PASSWORD)
 
-    user_id = cl.user_id_from_username(target_username)
+    user_id = cl.user_id_from_username(TARGET_USERNAME)
     followers_data = cl.user_followers(user_id)
     following_data = cl.user_following(user_id)
 
@@ -68,17 +56,12 @@ def fetch_subscriptions_and_followers(username: str, password: str, target_usern
     return followers, following
 
 
-async def send_telegram_message(bot: Bot, user_id: int, text: str) -> None:
-    await bot.send_message(chat_id=user_id, text=text)
+async def send_telegram_message(bot: Bot, text: str) -> None:
+    await bot.send_message(chat_id=TELEGRAM_USER_ID, text=text)
 
 
-async def run_check(bot: Bot, config: dict, state: dict) -> bool:
-    followers, following = await asyncio.to_thread(
-        fetch_subscriptions_and_followers,
-        config["instagram_username"],
-        config["instagram_password"],
-        config["target_username"],
-    )
+async def run_check(bot: Bot, state: dict) -> bool:
+    followers, following = await asyncio.to_thread(fetch_subscriptions_and_followers)
 
     first_run = not state["followers"] and not state["following"]
     if first_run:
@@ -87,8 +70,7 @@ async def run_check(bot: Bot, config: dict, state: dict) -> bool:
         save_state(state)
         await send_telegram_message(
             bot,
-            config["telegram_user_id"],
-            f"📌 База сохранена для @{config['target_username']}.\n"
+            f"📌 База сохранена для @{TARGET_USERNAME}.\n"
             f"Подписчики: {len(followers)}\n"
             f"Подписки: {len(following)}",
         )
@@ -108,7 +90,7 @@ async def run_check(bot: Bot, config: dict, state: dict) -> bool:
         messages.append("🟧 Удалены из подписок:\n" + "\n".join(f"- @{u}" for u in unfollowed))
 
     if messages:
-        await send_telegram_message(bot, config["telegram_user_id"], "\n\n".join(messages))
+        await send_telegram_message(bot, "\n\n".join(messages))
         state["followers"] = followers
         state["following"] = following
         save_state(state)
@@ -119,27 +101,25 @@ async def run_check(bot: Bot, config: dict, state: dict) -> bool:
 
 
 async def monitor(run_once: bool) -> None:
-    config = load_config()
-    bot = Bot(token=config["telegram_bot_token"])
+    bot = Bot(token=TELEGRAM_BOT_TOKEN)
     state = load_state()
 
     await send_telegram_message(
         bot,
-        config["telegram_user_id"],
-        f"✅ Мониторинг Instagram запущен для @{config['target_username']}.\n"
-        f"Интервал проверки: {config['check_every_seconds'] // 60} минут.",
+        f"✅ Мониторинг Instagram запущен для @{TARGET_USERNAME}.\n"
+        f"Интервал проверки: {CHECK_EVERY_SECONDS // 60} минут.",
     )
 
     while True:
         try:
-            await run_check(bot, config, state)
+            await run_check(bot, state)
         except Exception as exc:
             logger.exception("Check failed: %s", exc)
-            await send_telegram_message(bot, config["telegram_user_id"], f"⚠️ Ошибка проверки: {exc}")
+            await send_telegram_message(bot, f"⚠️ Ошибка проверки: {exc}")
 
         if run_once:
             break
-        await asyncio.sleep(config["check_every_seconds"])
+        await asyncio.sleep(CHECK_EVERY_SECONDS)
 
 
 if __name__ == "__main__":
