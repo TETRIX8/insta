@@ -11,11 +11,12 @@ frozenlist==1.4.1
 idna==3.7
 magic-filter==1.0.12
 multidict==6.0.5
-pydantic==2.7.1
+pydantic==2.10.1
 pydantic-settings==2.2.1
-pydantic_core==2.18.2
 python-dotenv==1.0.1
 requests==2.31.0
 typing_extensions==4.11.0
 urllib3==2.2.1
 yarl==1.9.4
+
+instagrapi==2.1.3
