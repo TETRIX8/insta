@@ -8,6 +8,7 @@ from typing import Tuple
 from aiogram import Bot
 from instagrapi import Client
 
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 logger = logging.getLogger(__name__)
 
